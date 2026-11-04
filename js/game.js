@@ -259,7 +259,20 @@ function autoMove(loc) {
   if (emptyCol >= 0 && tryMove(loc, { pile: "tableau", i: emptyCol })) return;
 
   // ③ どこにも置けない → プルプルさせて知らせる
-  src.slice(loc.idx).forEach((c) => {
+  shake(src.slice(loc.idx));
+}
+
+// めくった札をタップしたとき：左上の組札に置けるなら収納する
+function storeToFoundation(loc) {
+  for (let fi = 0; fi < 4; fi++) {
+    if (tryMove(loc, { pile: "foundation", i: fi })) return;
+  }
+  shake([getPile(loc)[loc.idx]]); // 収納できない → プルプル
+}
+
+// カードをプルプルふるわせて「ここには置けない」と知らせる
+function shake(cards) {
+  cards.forEach((c) => {
     const el = cardEls[c.id];
     el.classList.remove("shake");
     void el.offsetWidth; // アニメーションをもう一度動かすためのおまじない
@@ -282,40 +295,24 @@ function checkWin() {
   }
 }
 
-// 場札が全部表向きになったら、もう勝ちが決まっている
-// （山札にカードが残っていても、めくっていけば全部片付けられる）
+// 山札もめくった札もなくなり、場札が全部表向きになったら、あとは片付けるだけ
 function canAutoComplete() {
-  return !state.won && !autoRunning && state.tableau.every((col) => col.every((c) => c.up));
+  return (
+    !state.won &&
+    !autoRunning &&
+    state.stock.length === 0 && // 山札が残っている間は、自分でめくって置く
+    state.waste.length === 0 && // めくった札も、自分で場か組札に置き終わるまで待つ
+    state.tableau.every((col) => col.every((c) => c.up))
+  );
 }
 
-// 組札に置けるカードを1枚探して動かす。動かせたら true
+// 場札の一番上から、組札に置けるカードを1枚探して動かす。動かせたら true
 function moveOneToFoundation() {
-  // 場札の一番上と、めくったカードの一番上が候補
-  const candidates = [];
-  state.tableau.forEach((col, ti) => {
-    if (col.length) candidates.push({ pile: "tableau", i: ti, idx: col.length - 1 });
-  });
-  if (state.waste.length) candidates.push({ pile: "waste", i: 0, idx: state.waste.length - 1 });
-  for (const loc of candidates) {
+  for (let ti = 0; ti < 7; ti++) {
+    const col = state.tableau[ti];
+    if (!col.length) continue;
     for (let fi = 0; fi < 4; fi++) {
-      if (tryMove(loc, { pile: "foundation", i: fi })) return true;
-    }
-  }
-  // 見つからなければ、山札とめくったカードの中から直接さがして運ぶ
-  // （1枚ずつめくって探すと時間がかかるので）
-  for (const name of ["waste", "stock"]) {
-    const pile = state[name];
-    for (let idx = 0; idx < pile.length; idx++) {
-      for (let fi = 0; fi < 4; fi++) {
-        if (canFoundation(pile[idx], fi)) {
-          snapshot();
-          const [card] = pile.splice(idx, 1); // その1枚だけ抜き出す
-          card.up = true;
-          state.foundations[fi].push(card);
-          afterMove();
-          return true;
-        }
-      }
+      if (tryMove({ pile: "tableau", i: ti, idx: col.length - 1 }, { pile: "foundation", i: fi })) return true;
     }
   }
   return false;
@@ -643,10 +640,11 @@ window.addEventListener("pointerup", (e) => {
   drag = null;
 
   // 動かしていない → タップ。自動で置き場所を探す
-  // ただし、めくった札（山札の左の札）はタップしても動かさない（ドラッグで動かす）
+  // ただし、めくった札（山札の左の札）は、タップすると左上の組札にだけ収納する
+  // （場札の列に置きたいときはドラッグで動かす）
   if (!d.moved) {
-    if (d.loc.pile !== "waste") autoMove(d.loc);
-    else render(); // 念のため、元の位置に並べ直す
+    if (d.loc.pile === "waste") storeToFoundation(d.loc);
+    else autoMove(d.loc);
     return;
   }
 
