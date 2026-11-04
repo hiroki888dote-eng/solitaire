@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <!-- スマホの画面幅に合わせる・拡大縮小をさせない・iPhoneの切り欠きまで使う -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <!-- ホーム画面に追加したとき、アプリのように全画面で開くための設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ソリティア">
+  <meta name="theme-color" content="#145c37">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <title>ソリティア</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 上のバー：タイトル・経過時間・手数 -->
+  <header>
+    <h1>ソリティア</h1>
+    <div class="stats">
+      <span id="time">0:00</span>
+      <span id="moves">0手</span>
+    </div>
+  </header>
+
+  <!-- ボタンの帯（画面の上の方に置く） -->
+  <nav class="toolbar">
+    <button id="newBtn">新しいゲーム</button>
+    <button id="undoBtn">↶ 戻す</button>
+    <button id="modeBtn">1枚めくり</button>
+  </nav>
+
+  <!-- ゲーム盤。カードはここに JavaScript で並べる -->
+  <main id="board"></main>
+
+  <!-- クリアしたときの画面 -->
+  <div id="win" hidden>
+    <div class="panel">
+      <div class="big">🎉 クリア！</div>
+      <p id="winText"></p>
+      <button id="againBtn">もう一度あそぶ</button>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
