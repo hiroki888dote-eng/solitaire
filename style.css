@@ -8,7 +8,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: #145c37;
+  background: #121e33;
   overscroll-behavior: none; /* 下に引っぱって再読み込み、を防ぐ */
 }
 
@@ -35,17 +35,20 @@ header {
   /* 上に約5ミリ（19px）の余白をとる */
   padding: calc(env(safe-area-inset-top) + 25px) 14px 6px;
 }
-header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
+header h1 { margin: 0; font-size: 19px; letter-spacing: .12em; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 600; }
 .stats { display: flex; gap: 14px; font-size: 15px; font-variant-numeric: tabular-nums; opacity: .9; }
 
-/* ---------- ゲーム盤（緑のフェルト） ---------- */
+/* ---------- ゲーム盤（紺色のテーブル） ---------- */
 #board {
   position: relative;
   flex: 1;
   overflow: hidden;
   touch-action: none; /* 指で動かしても画面がスクロールしないように */
   margin-bottom: env(safe-area-inset-bottom); /* iPhoneの下のバーにかからないように */
-  background: radial-gradient(ellipse at 50% 30%, #23874f 0%, #176a3e 60%, #11532f 100%);
+  /* 真ん中が少し明るい、深い紺色のテーブル */
+  background:
+    radial-gradient(ellipse at 50% 22%, rgba(255, 255, 255, .07) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 35%, #24375a 0%, #1a2943 55%, #0f1a2e 100%);
 }
 
 /* ---------- カード ---------- */
@@ -54,15 +57,16 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
   width: var(--cw);
   height: var(--ch);
   box-sizing: border-box;
-  border: 1px solid #c9c9c9;
-  border-radius: calc(var(--cw) * 0.1);
-  background: #fff;
-  color: #1b1b1b;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-radius: calc(var(--cw) * 0.12);
+  /* 真っ白ではなく、上品なアイボリー色（上から下へほんの少し色が変わる） */
+  background: linear-gradient(170deg, #ffffff 0%, #faf7f0 60%, #f3eee2 100%);
+  color: #1d1d2b; /* 黒いマーク：真っ黒ではなく、少し紺がかった黒 */
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .22), 0 2px 5px rgba(0, 0, 0, .16);
   /* 動くときにスッと移動させる */
   transition: left .18s ease, top .18s ease;
 }
-.card.red { color: #d0262b; }
+.card.red { color: #c3122f; } /* 赤いマーク：深みのある赤 */
 
 /* 左上の「数字＋マーク」。大きめにして、重なっていてもよく見えるように */
 .card .corner {
@@ -71,13 +75,15 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
   top: 0;
   display: flex;
   align-items: center;
-  font-weight: 800;
-  font-size: calc(var(--cw) * 0.48);
+  /* 品のある書体。iPhoneでは「Bodoni 72」、無ければ「Times New Roman」 */
+  font-family: "Bodoni 72", "Didot", "Times New Roman", serif;
+  font-weight: 700;
+  font-size: calc(var(--cw) * 0.5);
   line-height: 1.08;
-  letter-spacing: -0.09em;
+  letter-spacing: -0.06em;
 }
 /* 「10」は2けたで横に長いので、少しだけ細くする */
-.card .corner.ten { letter-spacing: -0.14em; font-size: calc(var(--cw) * 0.44); }
+.card .corner.ten { letter-spacing: -0.12em; font-size: calc(var(--cw) * 0.45); }
 .card .corner i {
   font-style: normal;
   font-size: 0.92em;
@@ -107,8 +113,15 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
   left: 50%;
   top: 68%;
   transform: translate(-50%, -50%);
-  font-size: calc(var(--cw) * 0.58);
+  font-size: calc(var(--cw) * 0.5);
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--cw) * 0.72);
+  height: calc(var(--cw) * 0.72);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(184, 150, 62, .7), inset 0 0 0 3px #faf7f0, inset 0 0 0 4px rgba(184, 150, 62, .35);
 }
 
 /* J・Q・K：絵を表示する場所 */
@@ -121,12 +134,29 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
 }
 .card .face svg { display: block; width: 100%; height: 100%; }
 
-/* 裏向きのカード（青いしま模様） */
+/* 裏向きのカード：ワインレッドに金色の格子もよう。白いふちと、内側に細い金の線 */
 .card.down {
-  border: 2px solid #fff;
-  background: repeating-linear-gradient(45deg, #2b4fa8 0 4px, #3a63c6 4px 8px);
+  border: 2px solid #f6f2e8;
+  background:
+    repeating-linear-gradient(45deg, rgba(214, 180, 90, .32) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgba(214, 180, 90, .32) 0 1px, transparent 1px 5px),
+    linear-gradient(160deg, #8a2333 0%, #651826 55%, #4a0f1b 100%);
+  box-shadow: inset 0 0 0 1.5px #c9a74a, 0 1px 1px rgba(0, 0, 0, .25), 0 2px 5px rgba(0, 0, 0, .18);
 }
 .card.down > * { display: none; }
+/* 真ん中のひし形の飾り */
+.card.down::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--cw) * 0.26);
+  height: calc(var(--cw) * 0.26);
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1.5px solid #d6b45a;
+  background: #651826;
+  box-shadow: 0 0 0 2px #651826;
+}
 
 /* 指で動かしている最中はアニメーションを止めて、一番上に表示 */
 .card.dragging { transition: none; box-shadow: 0 6px 14px rgba(0, 0, 0, .45); }
@@ -145,12 +175,14 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
   width: var(--cw);
   height: var(--ch);
   box-sizing: border-box;
-  border: 2px dashed rgba(255, 255, 255, .3);
-  border-radius: calc(var(--cw) * 0.1);
+  border: 1.5px solid rgba(255, 255, 255, .22);
+  border-radius: calc(var(--cw) * 0.12);
+  background: rgba(0, 0, 0, .1);
+  font-family: "Bodoni 72", "Didot", "Times New Roman", serif;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, .45);
+  color: rgba(255, 255, 255, .3);
   font-size: calc(var(--cw) * 0.45);
 }
 
@@ -217,7 +249,7 @@ button:active { background: rgba(255, 255, 255, .3); }
   font-weight: 600;
 }
 #win p { font-size: 16px; margin: 12px 0 18px; }
-#win button { width: 100%; background: #1f7a4a; }
+#win button { width: 100%; background: #24375a; }
 @keyframes pop {
   from { transform: scale(.7); opacity: 0; }
   to { transform: scale(1); opacity: 1; }

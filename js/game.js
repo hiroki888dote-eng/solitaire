@@ -551,10 +551,11 @@ function faceSVG(rank, suit) {
 
   return (
     `<svg viewBox="0 0 60 66" xmlns="http://www.w3.org/2000/svg">` +
-    `<rect x=".8" y=".8" width="58.4" height="64.4" rx="3" fill="#fffaf0" stroke="${suitColor}" stroke-width="1.2"/>` + // わく
+    `<rect x=".8" y=".8" width="58.4" height="64.4" rx="3" fill="#fbf6e9" stroke="#b8963e" stroke-width="1.2"/>` + // 金色のわく
+    `<rect x="2.6" y="2.6" width="54.8" height="60.8" rx="2" fill="none" stroke="#b8963e" stroke-width=".4"/>` + // 内側の細い線
     `<g>${half}</g>` + // 上半分
     `<g transform="rotate(180 30 33)">${half}</g>` + // 下半分（同じ絵を逆さまに）
-    `<line x1="6" y1="33" x2="54" y2="33" stroke="${suitColor}" stroke-width=".6"/>` + // 真ん中の線
+    `<line x1="6" y1="33" x2="54" y2="33" stroke="#b8963e" stroke-width=".6"/>` + // 真ん中の金色の線
     `</svg>`
   );
 }
