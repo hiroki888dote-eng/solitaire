@@ -678,9 +678,11 @@ board.addEventListener("pointerdown", (e) => {
   const r = board.getBoundingClientRect();
   const bx = e.clientX - r.left;
   const by = e.clientY - r.top;
+  // 山札の少し上（盤のいちばん上のすき間）をタップしたときも、山札をめくる
   const sx = L.colX(STOCK_COL);
-  if (bx >= sx && bx <= sx + L.cw && by >= L.topY && by <= L.topY + L.ch) {
+  if (bx >= sx - L.gap / 2 && bx <= sx + L.cw + L.gap / 2 && by >= 0 && by <= L.topY + L.ch) {
     e.preventDefault();
+    lastStockTap = Date.now();
     drawStock();
     return;
   }
@@ -792,7 +794,11 @@ document.getElementById("newBtn").addEventListener("click", () => {
   newGame();
 });
 
+// 山札を連打している最中に指が「戻す」に当たっても戻らないように、
+// 山札をタップしてから少しの間（0.6秒）は「戻す」を受け付けない
+let lastStockTap = 0;
 document.getElementById("undoBtn").addEventListener("click", () => {
+  if (Date.now() - lastStockTap < 600) return;
   if (state && !dealing) undo();
 });
 
