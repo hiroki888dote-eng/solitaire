@@ -194,6 +194,27 @@ button:active { background: rgba(255, 255, 255, .3); }
   animation: pop .35s ease-out;
 }
 #win .big { font-size: 28px; font-weight: 800; }
+/* 採点：星・目安との差・くわしい数字 */
+#win .stars { font-size: 34px; color: #f2b400; letter-spacing: .08em; margin-bottom: 4px; }
+#win .diff { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+#win .sub { font-size: 14px; color: #555; line-height: 1.6; }
+
+/* 目安の手数（上のバー） */
+#target { color: #ffe08a; }
+
+/* 「カードを配っています…」のお知らせ */
+#dealing {
+  position: fixed;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  z-index: 2500;
+  padding: 14px 22px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .55);
+  font-size: 16px;
+  font-weight: 600;
+}
 #win p { font-size: 16px; margin: 12px 0 18px; }
 #win button { width: 100%; background: #1f7a4a; }
 @keyframes pop {

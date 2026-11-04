@@ -22,7 +22,17 @@ const STOCK_COL = 6;
 const board = document.getElementById("board");
 const timeEl = document.getElementById("time");
 const movesEl = document.getElementById("moves");
-const modeBtn = document.getElementById("modeBtn");
+// 目安の表示と「配っています…」は、古い画面ファイルには無いことがあるので、無ければ作る
+const targetEl = document.getElementById("target") || makeEl("span", "target", document.querySelector(".stats"));
+const dealingEl = document.getElementById("dealing") || makeEl("div", "dealing", document.body, "カードを配っています…");
+function makeEl(tag, id, parent, text = "") {
+  const el = document.createElement(tag);
+  el.id = id;
+  el.textContent = text;
+  if (tag === "div") el.hidden = true;
+  (parent || document.body).appendChild(el);
+  return el;
+}
 const winEl = document.getElementById("win");
 const winText = document.getElementById("winText");
 
@@ -33,7 +43,8 @@ const winText = document.getElementById("winText");
 //   foundations … 左上の4つの組札（A→Kの順に積む場所）
 //   tableau     … 下の7列の場札
 //   moves       … 手数 / elapsed … 経過秒数 / started … 始まったか
-//   won         … クリアしたか / drawCount … 1回にめくる枚数（1か3）
+//   won         … クリアしたか / drawCount … 1回にめくる枚数（いつも1）
+//   target      … 手数の目安（コンピューターが見つけた解き方の手数）
 let state;
 let history = [];        // 「戻す」用に、1手ごとの状態を記録しておく
 const cardEls = {};      // カードの番号 → 画面上のカード部品
@@ -82,8 +93,64 @@ function createDeck() {
   return deck;
 }
 
-function newGame(drawCount) {
-  const deck = createDeck();
+/* ---------- 解き方さがし係（solver.js）とのやりとり ----------
+   solver.js は裏側で「必ずクリアできる配り方」と「手数の目安」を探してくれる。
+   待たずに遊べるように、次のゲームの配り方を前もって用意しておく。 */
+let solver = null;
+try {
+  solver = new Worker("js/solver.js");
+} catch (err) {
+  solver = null; // 使えない環境なら、目安なしで遊ぶ
+}
+let readyDeal = null;   // 用意できた次の配り方
+let requesting = false; // 今さがしてもらっている途中か
+let onDealReady = null; // 配り方が届いたらすること
+let dealing = false;    // 配り方を待っている間は true（操作できない）
+
+function requestDeal() {
+  if (!solver || requesting || readyDeal) return;
+  requesting = true;
+  solver.postMessage("deal");
+}
+
+// 届いたときの処理（届かなかったときも、待っている人がいれば先へ進める）
+function dealArrived(data) {
+  requesting = false;
+  readyDeal = data;
+  if (onDealReady) {
+    const next = onDealReady;
+    onDealReady = null;
+    next();
+  }
+}
+if (solver) {
+  solver.onmessage = (e) => dealArrived(e.data);
+  solver.onerror = () => {
+    solver = null;
+    dealArrived(null);
+  };
+}
+
+// 新しいゲーム：用意してある配り方があればすぐ配る。なければ届くまで待つ
+function newGame() {
+  if (readyDeal || !solver) {
+    startDeal(readyDeal);
+    return;
+  }
+  dealing = true;
+  dealingEl.hidden = false; // 「配っています…」を出す
+  onDealReady = () => startDeal(readyDeal);
+  requestDeal();
+}
+
+// 実際にカードを配る。data は solver.js から届いた配り方（なければ普通に混ぜる）
+function startDeal(data) {
+  readyDeal = null;
+  dealing = false;
+  dealingEl.hidden = true;
+  const deck = data
+    ? data.deck.map((id) => ({ id, suit: Math.floor(id / 13), rank: (id % 13) + 1, up: false }))
+    : createDeck();
   const tableau = [[], [], [], [], [], [], []];
   // 1列目に1枚、2列目に2枚 … 7列目に7枚、と配る
   for (let row = 0; row < 7; row++) {
@@ -103,13 +170,15 @@ function newGame(drawCount) {
     elapsed: 0,
     started: false,
     won: false,
-    drawCount,
+    drawCount: 1, // 1枚めくりだけ
+    target: data ? data.target : null, // 手数の目安
   };
   history = [];
   winEl.hidden = true;
   save();
   render();
   updateInfo();
+  requestDeal(); // 次のゲームの配り方を、今のうちに裏で用意しておく
 }
 
 /* =========================================================
@@ -289,10 +358,38 @@ function checkWin() {
     state.won = true;
     save();
     setTimeout(() => {
-      winText.textContent = `タイム ${formatTime(state.elapsed)}　／　${state.moves}手`;
+      winText.innerHTML = scoreHTML();
       winEl.hidden = false;
     }, 400);
   }
+}
+
+// クリアしたときの採点：自分の手数と目安の差で星をつける
+function scoreHTML() {
+  const info = `あなた ${state.moves}手` +
+    (state.target ? `　／　目安 ${state.target}手` : "") +
+    `<br>タイム ${formatTime(state.elapsed)}`;
+  if (!state.target) return `<div class="sub">${info}</div>`;
+
+  const diff = state.moves - state.target; // プラスなら目安より多い
+  let stars, msg;
+  if (diff < 0) {
+    stars = "★★★";
+    msg = `目安より ${-diff}手 少ない！すごい！`;
+  } else if (diff === 0) {
+    stars = "★★★";
+    msg = "目安ぴったり！";
+  } else if (diff <= 10) {
+    stars = "★★☆";
+    msg = `目安との差 +${diff}手　おしい！`;
+  } else if (diff <= 30) {
+    stars = "★☆☆";
+    msg = `目安との差 +${diff}手`;
+  } else {
+    stars = "☆☆☆";
+    msg = `目安との差 +${diff}手　次はもっと少なく！`;
+  }
+  return `<div class="stars">${stars}</div><div class="diff">${msg}</div><div class="sub">${info}</div>`;
 }
 
 // 山札もめくった札もなくなり、場札が全部表向きになったら、あとは片付けるだけ
@@ -470,6 +567,7 @@ function buildElements() {
       el.className = "card" + (suit === 1 || suit === 2 ? " red" : "");
       const id = suit * 13 + rank - 1;
       el.dataset.id = id;
+      el.style.left = "-999px"; // 最初に配るまでは画面の外に置いておく
       el.innerHTML =
         `<span class="corner${rank === 10 ? " ten" : ""}">${RANKS[rank]}<i>${SUITS[suit]}</i></span>` +
         cardBody(rank, suit);
@@ -562,18 +660,18 @@ function render() {
 
 }
 
-// 上のバーの時間・手数と、めくり枚数ボタンの文字を更新
+// 上のバーの時間・手数・目安を更新
 function updateInfo() {
   timeEl.textContent = "⏱ " + formatTime(state.elapsed);
   movesEl.textContent = state.moves + "手";
-  modeBtn.textContent = state.drawCount + "枚めくり";
+  targetEl.textContent = state.target ? "目安 " + state.target + "手" : "";
 }
 
 /* =========================================================
    指（マウス）の操作
    ========================================================= */
 board.addEventListener("pointerdown", (e) => {
-  if (autoRunning || state.won || drag) return;
+  if (!state || dealing || autoRunning || state.won || drag) return;
 
   // 山札の場所をタップしたら、必ずめくる
   // （すばやく連打したとき、移動中のカードに当たってしまうのを防ぐ）
@@ -689,25 +787,16 @@ function dropTarget(x, y) {
    ボタン
    ========================================================= */
 document.getElementById("newBtn").addEventListener("click", () => {
-  if (autoRunning) return;
+  if (!state || dealing || autoRunning) return;
   if (state.moves > 0 && !state.won && !confirm("今のゲームをやめて、新しいゲームを始めますか？")) return;
-  newGame(state.drawCount);
+  newGame();
 });
 
-document.getElementById("undoBtn").addEventListener("click", undo);
-
-// 1枚めくり ⇔ 3枚めくり の切りかえ（新しいゲームになる）
-modeBtn.addEventListener("click", () => {
-  if (autoRunning) return;
-  const next = state.drawCount === 1 ? 3 : 1;
-  const msg = `${next}枚めくりで新しいゲームを始めますか？` +
-    (next === 3 ? "\n（3枚めくりはむずかしいモードです）" : "");
-  if (!confirm(msg)) return;
-  newGame(next);
+document.getElementById("undoBtn").addEventListener("click", () => {
+  if (state && !dealing) undo();
 });
 
-
-document.getElementById("againBtn").addEventListener("click", () => newGame(state.drawCount));
+document.getElementById("againBtn").addEventListener("click", () => newGame());
 
 /* =========================================================
    保存と読み込み（スマホの中に保存）
@@ -739,7 +828,7 @@ function load() {
    ========================================================= */
 setInterval(() => {
   // 始まっていて、クリア前で、画面が見えているときだけ数える
-  if (state.started && !state.won && document.visibilityState === "visible") {
+  if (state && !dealing && state.started && !state.won && document.visibilityState === "visible") {
     state.elapsed++;
     updateInfo();
     if (state.elapsed % 5 === 0) save(); // 5秒ごとに保存
@@ -750,17 +839,22 @@ setInterval(() => {
    スタート！
    ========================================================= */
 buildElements();
-if (load()) {
+if (load() && !state.won && state.drawCount === 1) {
+  // 前回の続きから
   render();
   updateInfo();
-  if (state.won) newGame(state.drawCount); // 前回クリア済みなら新しいゲーム
-  else if (canAutoComplete()) setTimeout(autoComplete, 500); // 片付けの途中だったら続ける
+  if (canAutoComplete()) setTimeout(autoComplete, 500); // 片付けの途中だったら続ける
+  requestDeal(); // 次のゲームの配り方を用意しておく
 } else {
-  newGame(1);
+  // 初めて／前回クリア済み／前の3枚めくりのゲーム → 新しいゲーム
+  state = null;
+  newGame();
 }
 
 // 画面の向きや大きさが変わったら並べ直す
-window.addEventListener("resize", () => render());
+window.addEventListener("resize", () => {
+  if (state) render();
+});
 
 // オフラインでも遊べるようにする仕組み（サービスワーカー）を登録
 if ("serviceWorker" in navigator) {

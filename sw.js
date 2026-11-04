@@ -5,7 +5,7 @@
    ・つながっていないときは、前回保存しておいたファイルで表示する
    ・ファイルを大きく変えたら、下の CACHE の番号を1つ上げる
    ========================================================= */
-const CACHE = "solitaire-v6";
+const CACHE = "solitaire-v7";
 
 // 最初に保存しておくファイルの一覧
 const ASSETS = [
@@ -13,6 +13,7 @@ const ASSETS = [
   "./index.html",
   "./style.css",
   "./js/game.js",
+  "./js/solver.js",
   "./manifest.webmanifest",
   "./apple-touch-icon.png",
   "./icon-192.png",
@@ -39,7 +40,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(req)
+    // cache: "no-cache" … ブラウザに古いファイルが残っていても、必ず新しいか確かめてから使う
+    fetch(req, { cache: "no-cache" })
       .then((res) => {
         // 正常に取れたファイルだけを保存する
         if (res.ok && res.type === "basic") {
