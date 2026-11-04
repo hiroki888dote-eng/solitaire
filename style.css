@@ -32,7 +32,8 @@ header {
   justify-content: space-between;
   align-items: center;
   /* iPhoneの上の切り欠き（時計など）の分だけ下げる */
-  padding: calc(env(safe-area-inset-top) + 6px) 14px 6px;
+  /* 上に約5ミリ（19px）の余白をとる */
+  padding: calc(env(safe-area-inset-top) + 25px) 14px 6px;
 }
 header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
 .stats { display: flex; gap: 14px; font-size: 15px; font-variant-numeric: tabular-nums; opacity: .9; }

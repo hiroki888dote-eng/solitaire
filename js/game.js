@@ -643,7 +643,12 @@ window.addEventListener("pointerup", (e) => {
   drag = null;
 
   // 動かしていない → タップ。自動で置き場所を探す
-  if (!d.moved) { autoMove(d.loc); return; }
+  // ただし、めくった札（山札の左の札）はタップしても動かさない（ドラッグで動かす）
+  if (!d.moved) {
+    if (d.loc.pile !== "waste") autoMove(d.loc);
+    else render(); // 念のため、元の位置に並べ直す
+    return;
+  }
 
   const dx = e.clientX - d.x0;
   const dy = e.clientY - d.y0;
