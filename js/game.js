@@ -788,17 +788,20 @@ function dropTarget(x, y) {
 /* =========================================================
    ボタン
    ========================================================= */
+// 山札を連打している最中に指がボタンに当たっても反応しないように、
+// 山札をタップしてから少しの間（0.6秒）は「戻す」「新しいゲーム」を受け付けない
+let lastStockTap = 0;
+const justTappedStock = () => Date.now() - lastStockTap < 600;
+
 document.getElementById("newBtn").addEventListener("click", () => {
+  if (justTappedStock()) return;
   if (!state || dealing || autoRunning) return;
   if (state.moves > 0 && !state.won && !confirm("今のゲームをやめて、新しいゲームを始めますか？")) return;
   newGame();
 });
 
-// 山札を連打している最中に指が「戻す」に当たっても戻らないように、
-// 山札をタップしてから少しの間（0.6秒）は「戻す」を受け付けない
-let lastStockTap = 0;
 document.getElementById("undoBtn").addEventListener("click", () => {
-  if (Date.now() - lastStockTap < 600) return;
+  if (justTappedStock()) return;
   if (state && !dealing) undo();
 });
 

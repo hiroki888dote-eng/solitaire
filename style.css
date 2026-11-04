@@ -159,7 +159,8 @@ header h1 { margin: 0; font-size: 18px; letter-spacing: .05em; }
   display: flex;
   gap: 8px;
   /* 下に広めのすき間：ボタンとゲーム盤の押しまちがいを防ぐ */
-  padding: 2px 10px 22px;
+  /* 右側（めくった札と山札の真上）は空けておく：山札を押すとき指がボタンに当たらないように */
+  padding: 2px 31% 22px 10px;
 }
 button {
   flex: 1;
