@@ -10,6 +10,10 @@ html, body {
   height: 100%;
   background: #121e33;
   overscroll-behavior: none; /* 下に引っぱって再読み込み、を防ぐ */
+  /* 画面のどこでも、ダブルタップやピンチで拡大されないようにする
+     （iPhoneは「拡大禁止」の設定を無視するので、ここで止める。
+       拡大されると、タッチした位置と画面の位置がずれてしまう） */
+  touch-action: none;
 }
 
 body {

@@ -97,10 +97,17 @@ function createDeck() {
    solver.js は裏側で「必ずクリアできる配り方」と「手数の目安」を探してくれる。
    待たずに遊べるように、次のゲームの配り方を前もって用意しておく。 */
 let solver = null;
-try {
-  solver = new Worker("js/solver.js");
-} catch (err) {
-  solver = null; // 使えない環境なら、目安なしで遊ぶ
+function startSolver() {
+  try {
+    solver = new Worker("js/solver.js");
+    solver.onmessage = (e) => dealArrived(e.data);
+    solver.onerror = () => {
+      solver = null;
+      dealArrived(null);
+    };
+  } catch (err) {
+    solver = null; // 使えない環境なら、目安なしで遊ぶ
+  }
 }
 let readyDeal = null;   // 用意できた次の配り方
 let requesting = false; // 今さがしてもらっている途中か
@@ -123,13 +130,7 @@ function dealArrived(data) {
     next();
   }
 }
-if (solver) {
-  solver.onmessage = (e) => dealArrived(e.data);
-  solver.onerror = () => {
-    solver = null;
-    dealArrived(null);
-  };
-}
+startSolver();
 
 // 新しいゲーム：用意してある配り方があればすぐ配る。なければ届くまで待つ
 function newGame() {
@@ -141,6 +142,16 @@ function newGame() {
   dealingEl.hidden = false; // 「配っています…」を出す
   onDealReady = () => startDeal(readyDeal);
   requestDeal();
+  // 10秒たっても届かないときは、さがし係が止まっている（iPhoneが裏の作業を止めた等）
+  // ので、作り直してもう一度頼む
+  setTimeout(() => {
+    if (!dealing || !onDealReady) return;
+    if (solver) solver.terminate();
+    requesting = false;
+    startSolver();
+    if (solver) requestDeal();
+    else dealArrived(null); // それでも使えなければ、目安なしで配る
+  }, 10000);
 }
 
 // 実際にカードを配る。data は solver.js から届いた配り方（なければ普通に混ぜる）
@@ -672,7 +683,13 @@ function updateInfo() {
    指（マウス）の操作
    ========================================================= */
 board.addEventListener("pointerdown", (e) => {
-  if (!state || dealing || autoRunning || state.won || drag) return;
+  // 前のドラッグが終わらないまま残っていたら（電話や通知で指を離した合図が来なかった等）、
+  // 取り消してカードを元の位置に戻す。これがないと、ずっと操作できなくなってしまう
+  if (drag) {
+    drag = null;
+    if (state) render();
+  }
+  if (!state || dealing || autoRunning || state.won) return;
 
   // 山札の場所をタップしたら、必ずめくる
   // （すばやく連打したとき、移動中のカードに当たってしまうのを防ぐ）
@@ -861,10 +878,31 @@ if (load() && !state.won && state.drawCount === 1) {
   newGame();
 }
 
-// 画面の向きや大きさが変わったら並べ直す
-window.addEventListener("resize", () => {
+/* =========================================================
+   タッチの位置ずれを防ぐ
+   ========================================================= */
+// 画面をいちばん上に戻して、カードを今の画面の大きさで並べ直す
+function relayout() {
+  window.scrollTo(0, 0); // 何かの拍子に画面がずれていたら元に戻す
+  if (drag) drag = null; // つかんだままのカードがあれば離す
   if (state) render();
+}
+
+// 画面の向きや大きさが変わったら並べ直す
+window.addEventListener("resize", relayout);
+window.addEventListener("orientationchange", () => setTimeout(relayout, 300));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", relayout);
+
+// ほかのアプリから戻ってきたとき、ずれていないように並べ直す
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") setTimeout(relayout, 100);
+  else if (drag) relayout(); // 画面を離れるときに、つかんだカードを離す
 });
+window.addEventListener("pageshow", () => setTimeout(relayout, 100));
+
+// iPhoneのピンチ（2本指で広げる）とダブルタップでの拡大を止める
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
 
 // オフラインでも遊べるようにする仕組み（サービスワーカー）を登録
 if ("serviceWorker" in navigator) {
