@@ -33,7 +33,7 @@ body {
 /* ---------- 上のバー ---------- */
 header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* 時間・手数・目安を右に寄せる */
   align-items: center;
   /* iPhoneの上の切り欠き（時計など）の分だけ下げる */
   /* 上に約5ミリ（19px）の余白をとる */
