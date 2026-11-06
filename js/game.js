@@ -655,7 +655,7 @@ function render() {
 
   // --- 場札（下の7列） ---
   const downStep = L.ch * 0.1; // 裏向きカードの重なり幅
-  const upStep = L.ch * 0.4; // 表向きカードの重なり幅
+  const upStep = L.ch * 0.44; // 表向きカードの重なり幅
   const room = L.H - L.tabY - L.ch - L.gap; // 下に使える高さ
   state.tableau.forEach((col, i) => {
     placeSlot("t" + i, L.colX(i), L.tabY);
