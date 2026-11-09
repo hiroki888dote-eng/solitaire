@@ -725,9 +725,18 @@ board.addEventListener("pointerdown", (e) => {
   if (loc.pile !== "tableau" && loc.idx !== pile.length - 1) return;
 
   const cards = pile.slice(loc.idx);
+  const els = cards.map((c) => cardEls[c.id]);
+  // 指を置いた瞬間に、カードが「今、画面のどこに見えているか」を覚えておく
+  // （めくった直後などでカードがまだ動いている途中でも、見えている位置からドラッグを始めるため）
+  const br = board.getBoundingClientRect();
+  const starts = els.map((el) => {
+    const rr = el.getBoundingClientRect();
+    return [rr.left - br.left, rr.top - br.top];
+  });
   drag = {
     loc,
-    els: cards.map((c) => cardEls[c.id]),
+    els,
+    starts,
     x0: e.clientX,
     y0: e.clientY,
     moved: false,
@@ -743,7 +752,10 @@ window.addEventListener("pointermove", (e) => {
   if (!drag.moved && Math.hypot(dx, dy) > 6) {
     drag.moved = true;
     drag.els.forEach((el, k) => {
-      el.classList.add("dragging");
+      el.classList.add("dragging"); // 動きのアニメーションを止める
+      // 指を置いたときに見えていた位置にカードを止めて、そこから指についていかせる
+      el.style.left = drag.starts[k][0] + "px";
+      el.style.top = drag.starts[k][1] + "px";
       el.style.zIndex = 1000 + k; // 一番手前に
     });
   }
@@ -781,8 +793,9 @@ window.addEventListener("pointerup", (e) => {
   const first = d.els[0];
   const cx = parseFloat(first.style.left) + L.cw / 2;
   const cy = parseFloat(first.style.top) + L.ch / 2;
-  const t = dropTarget(cx, cy);
-  if (!(t && tryMove(d.loc, t))) render(); // 置けなければ元の場所へ戻す
+  // 置ける場所を近い順に試す（一番近い場所に置けなくても、次に近い場所に置ければOK）
+  const targets = dropTargets(d.loc, cx, cy);
+  if (!targets.some((t) => tryMove(d.loc, t))) render(); // どこにも置けなければ元の場所へ戻す
 });
 
 // 電話がかかってきた等で操作が中断されたとき
@@ -792,15 +805,49 @@ window.addEventListener("pointercancel", () => {
   render();
 });
 
-// 盤の上の (x, y) が、どの置き場所に当たるかを調べる
-function dropTarget(x, y) {
-  const col = Math.floor((x - L.left + L.gap / 2) / (L.cw + L.gap));
-  if (col < 0 || col > 6) return null;
-  if (y < L.tabY - L.gap) {
-    // 上の段：左の4つが組札
-    return col <= 3 ? { pile: "foundation", i: col } : null;
+// つかんだカードの真ん中 (x, y) の近くにある「置ける場所」を、近い順に並べて返す
+// ・ルール上置けない場所は最初から入れない
+// ・列は「一番上のカード」だけでなく、列全体のどこに重ねても反応する
+// ・横はカード約1枚分、縦はカード約1枚分まで離れていても反応する（指が少しずれてもOK）
+function dropTargets(loc, x, y) {
+  const src = getPile(loc);
+  const card = src[loc.idx];
+  const single = loc.idx === src.length - 1;
+  const reachX = L.cw * 1.0;  // 横にどれだけ離れていても反応するか
+  const reachY = L.ch * 1.0;  // 縦にどれだけ離れていても反応するか
+  const found = [];
+
+  // 場所のはんい（左上 x0,y0 〜 右下 x1,y1）から、指までの近さを測る
+  const distTo = (x0, y0, x1, y1) => {
+    const dx = x < x0 ? x0 - x : x > x1 ? x - x1 : 0; // はんいの中なら 0
+    const dy = y < y0 ? y0 - y : y > y1 ? y - y1 : 0;
+    if (dx > reachX || dy > reachY) return null; // 遠すぎる
+    return Math.hypot(dx, dy);
+  };
+
+  // 組札（左上の4つ）：1枚だけのときに置ける
+  if (single && loc.pile !== "foundation") {
+    for (let i = 0; i < 4; i++) {
+      if (!canFoundation(card, i)) continue;
+      const cx0 = L.colX(i) + L.cw / 2, cy0 = L.topY + L.ch / 2;
+      const d = distTo(cx0, cy0, cx0, cy0);
+      if (d !== null) found.push({ t: { pile: "foundation", i }, d });
+    }
   }
-  return { pile: "tableau", i: col };
+
+  // 場札（下の7列）：列の一番上から、一番下のカードの下までを反応するはんいにする
+  for (let i = 0; i < 7; i++) {
+    if (loc.pile === "tableau" && loc.i === i) continue;
+    if (!canTableau(card, i)) continue;
+    const col = state.tableau[i];
+    const lastTop = col.length ? parseFloat(cardEls[topCard(col).id].style.top) : L.tabY;
+    const cx0 = L.colX(i) + L.cw / 2;
+    const d = distTo(cx0, L.tabY + L.ch / 2, cx0, lastTop + L.ch / 2);
+    if (d !== null) found.push({ t: { pile: "tableau", i }, d });
+  }
+
+  found.sort((a, b) => a.d - b.d); // 近い順
+  return found.map((f) => f.t);
 }
 
 /* =========================================================
